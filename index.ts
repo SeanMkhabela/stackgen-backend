@@ -34,7 +34,9 @@ app.get('/generate/:stack', async (request, reply) => {
 });
 
 // Start the server
-app.listen({ port: 3001 }, (err, address) => {
+const port = parseInt(process.env.PORT || '3001', 10);
+
+app.listen({ port, host: '0.0.0.0' }, (err, address) => {
   if (err) {
     app.log.error(err);
     process.exit(1);
