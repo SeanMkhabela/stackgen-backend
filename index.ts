@@ -8,11 +8,13 @@ import fs from 'fs';
 import { initSentry, setupSentryFastifyPlugin, captureException } from './utils/sentry';
 import { initRedis, setCache, getCache } from './utils/redis';
 import { setupSwagger } from './utils/swagger';
+import { initWorkers, shutdownWorkers } from './workers';
 
 import authRoutes from './routes/auth';
 import generateRoutes from './routes/generate';
 import apiKeyRoutes from './routes/apiKeys';
 import debugRoutes from './routes/debug';
+import jobRoutes from './routes/jobs';
 
 // Load environment variables
 dotenv.config();
@@ -113,6 +115,10 @@ async function startServer() {
   try {
     await connectToDatabases();
 
+    // Initialize worker system
+    await initWorkers(parseInt(process.env.WORKER_CONCURRENCY ?? '2', 10));
+    app.log.info('👷 Worker system initialized');
+
     // Setup OpenAPI/Swagger documentation before registering routes
     if (process.env.NODE_ENV !== 'production' || process.env.ENABLE_SWAGGER === 'true') {
       await setupSwagger(app);
@@ -142,6 +148,7 @@ async function startServer() {
     app.register(generateRoutes);
     app.register(apiKeyRoutes);
     app.register(debugRoutes);
+    app.register(jobRoutes);
 
     // Static boilerplate download route
     app.get('/generate/:stack', async (request, reply) => {
@@ -198,7 +205,12 @@ async function startServer() {
 
 // Handle process shutdown
 function handleShutdown() {
-  console.log('Shutting down gracefully...');
+  console.log('Shutting down server...');
+
+  // Shut down worker system first
+  shutdownWorkers().catch(err => {
+    console.error('Error shutting down workers:', err);
+  });
 
   // Close Redis connection
   import('./utils/redis')

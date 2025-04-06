@@ -246,6 +246,110 @@ To test if Redis is working correctly:
 3. If Redis is working, you'll see a success message
 4. If Redis is not available, the server will continue to work without caching
 
+## Worker Queue System
+
+The application includes a Bull-based worker queue system to handle CPU-intensive operations efficiently. This allows for distributing workloads across multiple workers and improves overall application performance.
+
+### Key Features
+
+- Distributes CPU-intensive tasks to background workers
+- Built on Bull and Redis for reliability and persistence
+- Automatic retries with exponential backoff for failed jobs
+- Configurable concurrency to optimize resource usage
+
+### Queue Structure
+
+The system has multiple specialized queues:
+
+- **Generation Queue**: Handles code generation and optimization tasks
+- **Export Queue**: Processes project exports and report generation
+
+### Usage Example
+
+```typescript
+// Import the queue functions
+import { queueGenerateCode, queueOptimizeCode } from './workers';
+
+// Queue a code generation job
+await queueGenerateCode({
+  prompt: 'Create a React component',
+  language: 'typescript',
+  userId: 'user123',
+});
+
+// Queue a code optimization job
+await queueOptimizeCode({
+  code: 'function example() { /* code to optimize */ }',
+  language: 'javascript',
+  userId: 'user123',
+});
+```
+
+### Configuration
+
+The worker system can be configured through environment variables:
+
+```
+# Number of concurrent jobs per worker (default: 2)
+WORKER_CONCURRENCY=4
+
+# Redis URL for the queue system
+REDIS_URL=redis://localhost:6379
+```
+
+### Testing
+
+The queue system is fully testable with mocks:
+
+```typescript
+// Mock the queue system
+vi.mock('../../utils/queue', () => ({
+  addJob: vi.fn().mockResolvedValue({ id: 'job-123' }),
+  // Other queue functions...
+}));
+
+// Test that jobs are queued correctly
+expect(addJob).toHaveBeenCalledWith('generation', 'generate_code', {
+  prompt: 'Test',
+  language: 'javascript',
+  userId: 'user123',
+});
+```
+
+#### Running Worker Queue Tests
+
+The worker queue tests require special attention to module mocking order due to hoisting behavior in Vitest:
+
+1. The Redis module needs to be mocked before other modules that import it
+2. Queue methods should be mocked using `vi.hoisted()` to ensure they're available during module loading
+3. Any module that imports the real implementation needs to have its mock defined before importing
+
+For example:
+
+```typescript
+// Step 1: Mock Redis first
+const mockIsRedisAvailable = vi.fn().mockReturnValue(true);
+vi.mock('../../utils/redis', () => ({
+  isRedisAvailable: mockIsRedisAvailable,
+}));
+
+// Step 2: Create hoisted mock functions
+const { initQueue, addJob } = vi.hoisted(() => ({
+  initQueue: vi.fn(),
+  addJob: vi.fn(),
+}));
+
+// Step 3: Mock the queue module
+vi.mock('../../utils/queue', () => ({
+  QueueName: { GENERATION: 'generation' },
+  initQueue,
+  addJob,
+}));
+
+// Step 4: Import the module under test (after all mocks are set up)
+import { someFunction } from '../../module-to-test';
+```
+
 ## Troubleshooting
 
 - If errors aren't showing up in Sentry:
