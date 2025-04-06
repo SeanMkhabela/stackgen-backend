@@ -77,7 +77,7 @@ export function validatePassword(password: string): ValidationError | null {
 }
 
 export function validateEmail(email: string): ValidationError | null {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^(?:[^\s@]+)@(?:[^\s@]+\.)+[^\s@]+$/;
   if (!email || !emailRegex.test(email)) {
     return {
       error: 'Invalid email',
