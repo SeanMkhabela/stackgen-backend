@@ -10,6 +10,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
 
+    # Add MongoDB service
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+
     strategy:
       matrix:
         node-version: [18.x, 20.x]
@@ -51,6 +58,7 @@ jobs:
         path: |
           ./coverage
           ./test-results
+        if-no-files-found: warn
 
   # Add a status check job that depends on the test job
   status-check:
