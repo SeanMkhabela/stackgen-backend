@@ -12,18 +12,12 @@ export async function verifyJwt(request: FastifyRequest, reply: FastifyReply) {
     }
     
     const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-    
-    try {
-      const decoded = verifyToken(token);
-      // Add user info to request for later use
-      request.user = decoded;
-    } catch (err) {
-      reply.status(401).send({ error: 'Invalid or expired token' });
-      return;
-    }
+    const decoded = verifyToken(token);
+    // Add user info to request for later use
+    request.user = decoded;
   } catch (error) {
     console.error('JWT verification error:', error);
-    reply.status(500).send({ error: 'Internal server error during authentication' });
+    reply.status(401).send({ error: 'Invalid or expired token' });
   }
 }
 

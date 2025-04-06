@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import Fastify from 'fastify';
 import apiKeyRoutes from '../../routes/apiKeys';
-import { verifyJwt } from '../../utils/auth';
 
 // Mock JWT verification
 vi.mock('../../utils/auth', () => ({
