@@ -1,13 +1,12 @@
 import { beforeAll, afterAll, vi } from 'vitest';
-import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 
 // Load environment variables
 dotenv.config();
 
 // Mock mongoose model
-vi.mock('mongoose', () => {
-  const actualMongoose = vi.importActual('mongoose');
+vi.mock('mongoose', async () => {
+  const actualMongoose = await vi.importActual('mongoose');
   return {
     ...actualMongoose,
     connect: vi.fn().mockResolvedValue(undefined),

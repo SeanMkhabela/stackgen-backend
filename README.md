@@ -28,6 +28,46 @@ To test if Sentry is working correctly:
    - You can see detailed information about the error
    - User context, tags, and other metadata are included
 
+## CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+### Workflows
+
+1. **Pull Request Checks** (`.github/workflows/pull-request.yml`)
+   - Runs tests and linting on all pull requests to the main branch
+   - Blocks merging if tests or linting fail
+
+2. **Continuous Integration** (`.github/workflows/ci.yml`)
+   - Runs on both pull requests and pushes to main
+   - Tests code with multiple Node.js versions (18.x and 20.x)
+   - Uploads test results as artifacts
+
+3. **Deployment** (`.github/workflows/deploy.yml`)
+   - Triggered after successful merge to main
+   - Runs tests again to ensure quality
+   - Deploys code to your production environment
+
+4. **Branch Protection** (`.github/workflows/branch-protection.yml`)
+   - Sets up GitHub branch protection rules automatically
+   - Requires passing CI checks before merging
+   - Requires code review approval
+
+### Running Tests Locally
+
+Before pushing changes, run tests locally to ensure they pass:
+
+```bash
+# Run tests once
+npm test
+
+# Run tests in watch mode during development
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
 ## Auth System and Testing
 
 The application includes a complete authentication system with:
