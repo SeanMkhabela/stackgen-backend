@@ -29,4 +29,4 @@ Feel free to expand this backend by:
 1. Adding more routes
 2. Connecting to a database
 3. Implementing authentication
-4. Adding middleware for request validation 
+4. Adding middleware for request validation

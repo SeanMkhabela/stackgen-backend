@@ -2,9 +2,9 @@ name: Node.js CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -22,42 +22,42 @@ jobs:
         node-version: [18.x, 20.x]
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v3
-      with:
-        node-version: ${{ matrix.node-version }}
-        cache: 'npm'
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v3
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
 
-    - name: Cache node modules
-      uses: actions/cache@v3
-      with:
-        path: ~/.npm
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-node-
+      - name: Cache node modules
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Verify MongoDB connection
-      run: |
-        echo "Waiting for MongoDB to be ready..."
-        apt-get update && apt-get install -y mongodb-clients || true
-        for i in {1..20}; do
-          mongo --eval "db.serverStatus()" mongodb://localhost:27017/test && echo "MongoDB is ready!" && break
-          echo "Waiting for MongoDB ($i/20)..."
-          sleep 1
-        done
+      - name: Verify MongoDB connection
+        run: |
+          echo "Waiting for MongoDB to be ready..."
+          apt-get update && apt-get install -y mongodb-clients || true
+          for i in {1..20}; do
+            mongo --eval "db.serverStatus()" mongodb://localhost:27017/test && echo "MongoDB is ready!" && break
+            echo "Waiting for MongoDB ($i/20)..."
+            sleep 1
+          done
 
-    - name: Run tests
-      run: npm test
-      env:
-        NODE_ENV: test
-        MONGO_URI_TEST: mongodb://localhost:27017/test
-        JWT_SECRET: test_secret_for_ci
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          MONGO_URI_TEST: mongodb://localhost:27017/test
+          JWT_SECRET: test_secret_for_ci
 
     # Skip artifact upload for now to get tests passing
     # - name: Upload test results
@@ -82,4 +82,4 @@ jobs:
             echo "Tests failed, blocking merge to main"
             exit 1
           fi
-          echo "All tests passed!" 
+          echo "All tests passed!"

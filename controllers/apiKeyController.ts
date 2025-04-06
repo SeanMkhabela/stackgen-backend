@@ -4,6 +4,12 @@ import mongoose from 'mongoose';
 
 const { ApiKey } = apiKeyUtil;
 
+// Rate limiting configuration
+const RATE_LIMIT = {
+  keysPerUser: 5, // Maximum number of API keys per user
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
+};
+
 // Generate a new API key for a user
 export async function createApiKey(request: FastifyRequest, reply: FastifyReply) {
   try {
@@ -20,9 +26,20 @@ export async function createApiKey(request: FastifyRequest, reply: FastifyReply)
       return reply.status(400).send({ error: 'Name and userId are required' });
     }
 
+    // Validate name length
+    if (name.length > 50) {
+      return reply.status(400).send({ error: 'Invalid name length' });
+    }
+
     // Validate userId is a valid ObjectId
     if (!mongoose.Types.ObjectId.isValid(userId)) {
       return reply.status(400).send({ error: 'Invalid userId format' });
+    }
+
+    // Check rate limit
+    const keyCount = await ApiKey.countDocuments({ owner: userId });
+    if (keyCount >= RATE_LIMIT.keysPerUser) {
+      return reply.status(429).send({ error: 'Rate limit exceeded' });
     }
 
     // Generate a new API key
@@ -35,7 +52,7 @@ export async function createApiKey(request: FastifyRequest, reply: FastifyReply)
       owner: userId,
       createdAt: new Date(),
       lastUsed: null,
-      enabled: true
+      enabled: true,
     });
 
     // Save the API key to the database
@@ -46,7 +63,7 @@ export async function createApiKey(request: FastifyRequest, reply: FastifyReply)
       key,
       name: apiKey.name,
       createdAt: apiKey.createdAt,
-      id: apiKey._id
+      id: apiKey._id,
     });
   } catch (error) {
     console.error('Error creating API key:', error);
@@ -63,8 +80,12 @@ export async function listApiKeys(request: FastifyRequest, reply: FastifyReply) 
       return reply.status(400).send({ error: 'userId is required' });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      return reply.status(400).send({ error: 'Invalid userId format' });
+    }
+
     // Find all API keys for the user
-    const keys = await ApiKey.find({ owner: userId }).select('-key');
+    const keys = await ApiKey.find({ owner: userId }).select('-key').sort({ createdAt: -1 });
 
     return reply.send(keys);
   } catch (error) {
@@ -78,24 +99,27 @@ export async function revokeApiKey(request: FastifyRequest, reply: FastifyReply)
   try {
     const { keyId } = request.params as { keyId: string };
 
-    if (!keyId || !mongoose.Types.ObjectId.isValid(keyId)) {
+    if (!keyId) {
       return reply.status(400).send({ error: 'Valid keyId is required' });
     }
 
+    if (!mongoose.Types.ObjectId.isValid(keyId)) {
+      return reply.status(400).send({ error: 'Invalid keyId format' });
+    }
+
     // Find and update the API key
-    const result = await ApiKey.findByIdAndUpdate(
-      keyId,
-      { enabled: false },
-      { new: true }
-    );
+    const result = await ApiKey.findByIdAndUpdate(keyId, { enabled: false }, { new: true });
 
     if (!result) {
       return reply.status(404).send({ error: 'API key not found' });
     }
 
-    return reply.send({ success: true, message: 'API key revoked successfully' });
+    return reply.send({
+      success: true,
+      message: 'API key revoked successfully',
+    });
   } catch (error) {
     console.error('Error revoking API key:', error);
     return reply.status(500).send({ error: 'Failed to revoke API key' });
   }
-} 
+}

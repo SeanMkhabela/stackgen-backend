@@ -2,49 +2,49 @@ name: Pull Request Checks
 
 on:
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     # Add MongoDB service with simplified configuration
     services:
       mongodb:
         image: mongo:6.0
         ports:
           - 27017:27017
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Verify MongoDB connection
-      run: |
-        echo "Waiting for MongoDB to be ready..."
-        apt-get update && apt-get install -y mongodb-clients || true
-        for i in {1..20}; do
-          mongo --eval "db.serverStatus()" mongodb://localhost:27017/test && echo "MongoDB is ready!" && break
-          echo "Waiting for MongoDB ($i/20)..."
-          sleep 1
-        done
+      - name: Verify MongoDB connection
+        run: |
+          echo "Waiting for MongoDB to be ready..."
+          apt-get update && apt-get install -y mongodb-clients || true
+          for i in {1..20}; do
+            mongo --eval "db.serverStatus()" mongodb://localhost:27017/test && echo "MongoDB is ready!" && break
+            echo "Waiting for MongoDB ($i/20)..."
+            sleep 1
+          done
 
-    - name: Run tests
-      run: npm test
-      env:
-        NODE_ENV: test
-        MONGO_URI_TEST: mongodb://localhost:27017/test
-        JWT_SECRET: test_secret_for_ci
-      
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          MONGO_URI_TEST: mongodb://localhost:27017/test
+          JWT_SECRET: test_secret_for_ci
+
     # Skip artifact upload for now to get tests passing
     # - name: Upload test results
     #   if: always()
@@ -58,33 +58,33 @@ jobs:
 
   lint:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run linter
-      run: npm run lint || echo "No lint script found"
+      - name: Run linter
+        run: npm run lint || echo "No lint script found"
 
   require-tests:
     runs-on: ubuntu-latest
     needs: [test, lint]
     if: always()
-    
+
     steps:
-    - name: Check test results
-      run: |
-        if [[ "${{ needs.test.result }}" != "success" || "${{ needs.lint.result }}" != "success" ]]; then
-          echo "Tests or linting failed - cannot merge PR"
-          exit 1
-        fi
-        echo "All checks passed!" 
+      - name: Check test results
+        run: |
+          if [[ "${{ needs.test.result }}" != "success" || "${{ needs.lint.result }}" != "success" ]]; then
+            echo "Tests or linting failed - cannot merge PR"
+            exit 1
+          fi
+          echo "All checks passed!"

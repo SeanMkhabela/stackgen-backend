@@ -5,21 +5,25 @@
 To test if Sentry is working correctly:
 
 1. Make sure your `.env` file has a valid Sentry DSN:
+
    ```
    SENTRY_DSN=https://your-key@your-org.ingest.sentry.io/your-project-id
    ```
 
 2. Start the server:
+
    ```
    npx tsx index.ts
    ```
 
 3. Trigger a test error by visiting or making a request to:
+
    ```
    http://localhost:3001/test-sentry
    ```
 
 4. Check your Sentry dashboard at https://sentry.io/
+
    - You should see a new error event with the message "Test error for Sentry"
    - The dashboard will show details about the error including the stack trace
 
@@ -35,15 +39,18 @@ This project uses GitHub Actions for continuous integration and deployment:
 ### Workflows
 
 1. **Pull Request Checks** (`.github/workflows/pull-request.yml`)
+
    - Runs tests and linting on all pull requests to the main branch
    - Blocks merging if tests or linting fail
 
 2. **Continuous Integration** (`.github/workflows/ci.yml`)
+
    - Runs on both pull requests and pushes to main
    - Tests code with multiple Node.js versions (18.x and 20.x)
    - Uploads test results as artifacts
 
 3. **Deployment** (`.github/workflows/deploy.yml`)
+
    - Triggered after successful merge to main
    - Runs tests again to ensure quality
    - Deploys code to your production environment
@@ -71,6 +78,7 @@ npm run test:coverage
 ## Auth System and Testing
 
 The application includes a complete authentication system with:
+
 - User signup and signin endpoints
 - Password hashing with bcrypt
 - JWT token generation for authenticated sessions
@@ -78,6 +86,7 @@ The application includes a complete authentication system with:
 ### Auth Endpoints
 
 - `POST /auth/signup`: Create a new user account
+
   - Body: `{ email: string, password: string }`
   - Returns: Success message or error
 
@@ -97,41 +106,44 @@ The auth system is thoroughly tested with both unit and integration tests:
 Here are the key patterns and fixes implemented in the auth tests:
 
 1. **Proper Mock Implementation for Mongoose Models**:
+
    ```typescript
    // Create a proper constructor function for the User model
-   const UserMock = function(this: any, data: any) {
+   const UserMock = function (this: any, data: any) {
      Object.assign(this, data);
      this.save = SaveMock; // Mock the save method on each instance
      return this;
    };
-   
+
    // Add static methods to the constructor
    return {
      User: Object.assign(UserMock, {
-       findOne: vi.fn() // Add static methods like findOne
-     })
+       findOne: vi.fn(), // Add static methods like findOne
+     }),
    };
    ```
 
 2. **Correctly Mocking CommonJS Modules (bcrypt)**:
+
    ```typescript
    vi.mock('bcrypt', () => {
      const mockHash = vi.fn().mockResolvedValue('hashed_password');
      const mockCompare = vi.fn().mockResolvedValue(true);
-     
+
      return {
        __esModule: true, // Important for CommonJS modules
        default: {
          hash: mockHash,
-         compare: mockCompare
+         compare: mockCompare,
        },
        hash: mockHash,
-       compare: mockCompare
+       compare: mockCompare,
      };
    });
    ```
 
 3. **Robust HTTP Response Handling**:
+
    ```typescript
    // Separate status and send calls for better testability
    if (!user) {
@@ -141,19 +153,21 @@ Here are the key patterns and fixes implemented in the auth tests:
    ```
 
 4. **Proper Method Chaining in Mocks**:
+
    ```typescript
    mockReply = {
      send: vi.fn().mockReturnThis(),
-     status: vi.fn().mockReturnThis()
+     status: vi.fn().mockReturnThis(),
    };
    ```
 
 5. **Explicit Mock Resetting**:
+
    ```typescript
    beforeEach(() => {
      // Reset all mocks between tests
      vi.resetAllMocks();
-     
+
      // Set default behaviors for commonly used mocks
      vi.mocked(bcrypt.compare).mockImplementation(() => Promise.resolve(true));
      vi.mocked(jwt.signToken).mockReturnValue('test_token');
@@ -171,7 +185,7 @@ npx vitest run
 # Run just the auth controller tests
 npx vitest run test/controllers/authController.test.ts
 
-# Run the auth route tests  
+# Run the auth route tests
 npx vitest run test/routes/auth.test.ts
 ```
 
@@ -190,16 +204,19 @@ docker run --name stackgen-redis -p 6379:6379 -d redis
 ### Option 2: Installing Redis Locally
 
 #### Windows:
+
 1. Use Windows Subsystem for Linux (WSL) or
 2. Download and install [Redis Stack](https://redis.io/download/)
 
 #### Mac:
+
 ```
 brew install redis
 brew services start redis
 ```
 
 #### Linux:
+
 ```
 sudo apt update
 sudo apt install redis-server
@@ -209,11 +226,13 @@ sudo systemctl start redis
 ### Option 3: Cloud Redis
 
 You can use a managed Redis service:
+
 - [Upstash](https://upstash.com/) (Free tier available)
 - [Redis Cloud](https://redis.com/redis-enterprise-cloud/overview/)
 - [AWS ElastiCache](https://aws.amazon.com/elasticache/)
 
 Update your `.env` file with the connection string:
+
 ```
 REDIS_URL=redis://username:password@host:port
 ```
@@ -221,10 +240,115 @@ REDIS_URL=redis://username:password@host:port
 ### Testing Redis
 
 To test if Redis is working correctly:
+
 1. Start the server: `npx tsx index.ts`
 2. Visit: `http://localhost:3001/test-redis`
 3. If Redis is working, you'll see a success message
 4. If Redis is not available, the server will continue to work without caching
+
+## Worker Queue System
+
+The application includes a Bull-based worker queue system to handle CPU-intensive operations efficiently. This allows for distributing workloads across multiple workers and improves overall application performance.
+
+### Key Features
+
+- Distributes CPU-intensive tasks to background workers
+- Built on Bull and Redis for reliability and persistence
+- Automatic retries with exponential backoff for failed jobs
+- Configurable concurrency to optimize resource usage
+
+### Queue Structure
+
+The system has multiple specialized queues:
+
+- **Generation Queue**: Handles code generation and optimization tasks
+- **Export Queue**: Processes project exports and report generation
+
+### Usage Example
+
+```typescript
+// Import the queue functions
+import { queueGenerateCode, queueOptimizeCode } from './workers';
+
+// Queue a code generation job
+await queueGenerateCode({
+  prompt: 'Create a React component',
+  language: 'typescript',
+  userId: 'user123',
+});
+
+// Queue a code optimization job
+await queueOptimizeCode({
+  code: 'function example() { /* code to optimize */ }',
+  language: 'javascript',
+  userId: 'user123',
+});
+```
+
+### Configuration
+
+The worker system can be configured through environment variables:
+
+```
+# Number of concurrent jobs per worker (default: 2)
+WORKER_CONCURRENCY=4
+
+# Redis URL for the queue system
+REDIS_URL=redis://localhost:6379
+```
+
+### Testing
+
+The queue system is fully testable with mocks:
+
+```typescript
+// Mock the queue system
+vi.mock('../../utils/queue', () => ({
+  addJob: vi.fn().mockResolvedValue({ id: 'job-123' }),
+  // Other queue functions...
+}));
+
+// Test that jobs are queued correctly
+expect(addJob).toHaveBeenCalledWith('generation', 'generate_code', {
+  prompt: 'Test',
+  language: 'javascript',
+  userId: 'user123',
+});
+```
+
+#### Running Worker Queue Tests
+
+The worker queue tests require special attention to module mocking order due to hoisting behavior in Vitest:
+
+1. The Redis module needs to be mocked before other modules that import it
+2. Queue methods should be mocked using `vi.hoisted()` to ensure they're available during module loading
+3. Any module that imports the real implementation needs to have its mock defined before importing
+
+For example:
+
+```typescript
+// Step 1: Mock Redis first
+const mockIsRedisAvailable = vi.fn().mockReturnValue(true);
+vi.mock('../../utils/redis', () => ({
+  isRedisAvailable: mockIsRedisAvailable,
+}));
+
+// Step 2: Create hoisted mock functions
+const { initQueue, addJob } = vi.hoisted(() => ({
+  initQueue: vi.fn(),
+  addJob: vi.fn(),
+}));
+
+// Step 3: Mock the queue module
+vi.mock('../../utils/queue', () => ({
+  QueueName: { GENERATION: 'generation' },
+  initQueue,
+  addJob,
+}));
+
+// Step 4: Import the module under test (after all mocks are set up)
+import { someFunction } from '../../module-to-test';
+```
 
 ## Troubleshooting
 
@@ -232,8 +356,7 @@ To test if Redis is working correctly:
   - Verify your DSN is correct
   - Make sure the server is running with the proper environment
   - Check that your Sentry project is configured correctly
-  
 - If Redis won't connect:
   - Verify Redis is running (`redis-cli ping` should return `PONG`)
   - Check your REDIS_URL in the `.env` file
-  - The application will continue to work without Redis 
+  - The application will continue to work without Redis

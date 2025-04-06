@@ -13,25 +13,25 @@ vi.mock('mongoose', async () => {
     disconnect: vi.fn().mockResolvedValue(undefined),
     connection: {
       readyState: 1,
-      dropDatabase: vi.fn().mockResolvedValue(undefined)
-    }
+      dropDatabase: vi.fn().mockResolvedValue(undefined),
+    },
   };
 });
 
 // Mock User model
 vi.mock('../models/User', () => {
   // Create a constructor function for User that properly adds save method to instances
-  const MockUser = vi.fn().mockImplementation(function(this: any, data: any) {
+  const MockUser = vi.fn().mockImplementation(function (this: any, data: any) {
     Object.assign(this, data);
     // Make sure every instance has a save method
     this.save = vi.fn().mockImplementation(() => Promise.resolve(this));
     return this;
   });
-  
+
   return {
     User: Object.assign(MockUser, {
-      findOne: vi.fn()
-    })
+      findOne: vi.fn(),
+    }),
   };
 });
 
@@ -54,7 +54,7 @@ vi.mock('../utils/sentry', () => ({
 // Mock JWT functions
 vi.mock('../utils/jwt', () => ({
   signToken: vi.fn().mockReturnValue('test_jwt_token'),
-  verifyToken: vi.fn().mockReturnValue({ id: 'test_id', email: 'test@example.com' })
+  verifyToken: vi.fn().mockReturnValue({ id: 'test_id', email: 'test@example.com' }),
 }));
 
 // Connect to test MongoDB before all tests
@@ -81,4 +81,4 @@ afterAll(async () => {
     await mongoose.disconnect();
   }
   */
-}); 
+});

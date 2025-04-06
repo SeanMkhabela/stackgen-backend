@@ -27,6 +27,7 @@ npm run test:coverage
 ## Mocking Dependencies
 
 For tests, we mock the following external dependencies:
+
 - MongoDB (User model) - Mock functions for database operations
 - Redis - Mock functions for caching operations
 - Sentry - Mock functions for error reporting
@@ -41,7 +42,8 @@ For tests, we mock the following external dependencies:
 ## Adding New Tests
 
 When adding new tests:
+
 1. Follow the existing patterns for unit or integration tests
 2. Use mocks for external dependencies
 3. Make sure to write tests for both success and error scenarios
-4. For API tests, use Supertest with the test server 
+4. For API tests, use Supertest with the test server
