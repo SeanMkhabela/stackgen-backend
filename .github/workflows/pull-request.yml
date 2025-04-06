@@ -8,6 +8,13 @@ jobs:
   test:
     runs-on: ubuntu-latest
     
+    # Add MongoDB service
+    services:
+      mongodb:
+        image: mongo:latest
+        ports:
+          - 27017:27017
+    
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
@@ -27,6 +34,16 @@ jobs:
         NODE_ENV: test
         MONGO_URI_TEST: mongodb://localhost:27017/test
         JWT_SECRET: test_secret_for_ci
+        
+    - name: Upload test results
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: test-results
+        path: |
+          ./coverage
+          ./test-results
+        if-no-files-found: warn
 
   lint:
     runs-on: ubuntu-latest
