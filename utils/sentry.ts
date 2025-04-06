@@ -1,12 +1,5 @@
 // utils/sentry.ts
 import * as Sentry from '@sentry/node';
-import { RewriteFrames } from '@sentry/integrations';
-import path from 'path';
-
-// Fix TypeScript error with global.__dirname
-declare global {
-  var __dirname: string;
-}
 
 export function initSentry() {
   if (!process.env.SENTRY_DSN || process.env.SENTRY_DSN.includes('<your-sentry-key>')) {
@@ -17,12 +10,21 @@ export function initSentry() {
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     integrations: [
-      new RewriteFrames({
-        root: process.cwd(),
-      }),
+      new Sentry.Integrations.Http({ tracing: true }),
+      new Sentry.Integrations.Express(),
+      new Sentry.Integrations.Modules(),
     ],
-    tracesSampleRate: 1.0, // you can lower this in production
-    environment: process.env.NODE_ENV || 'development',
+    // This sets the sample rate to be 100%. You may want this to be 100% while
+    // in development and sample at a lower rate in production
+    tracesSampleRate: 1.0,
+    environment: process.env.NODE_ENV ?? 'development',
+    // Set the context to the current working directory
+    normalizeDepth: 10,
+    initialScope: {
+      tags: {
+        rootDir: process.cwd(),
+      },
+    },
   });
 }
 
@@ -37,7 +39,7 @@ export function captureException(error: Error, context?: Record<string, any>) {
 export function setupSentryFastifyPlugin(app: any) {
   // Add hook to track requests
   app.addHook('onRequest', (request: any, reply: any, done: any) => {
-    Sentry.configureScope(scope => {
+    Sentry.withScope(scope => {
       scope.setTag('path', request.url);
       if (request.user) {
         scope.setUser({ id: request.user.id, username: request.user.username });

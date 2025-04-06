@@ -5,7 +5,7 @@ import fastifyCors from '@fastify/cors';
 import path from 'path';
 import fs from 'fs';
 import { initSentry, setupSentryFastifyPlugin, captureException } from './utils/sentry';
-import { initRedis, getRedisClient, setCache, getCache } from './utils/redis';
+import { initRedis, setCache, getCache } from './utils/redis';
 
 import authRoutes from './routes/auth';
 import generateRoutes from './routes/generate';
@@ -19,7 +19,7 @@ initSentry();
 // Create Fastify instance
 const app = Fastify({
   logger: {
-    level: process.env.LOG_LEVEL || 'info',
+    level: process.env.LOG_LEVEL ?? 'info',
     transport: {
       target: 'pino-pretty',
       options: {
@@ -94,7 +94,6 @@ app.setErrorHandler((error, request, reply) => {
 app.get('/ping', async () => ({ message: 'pong 🎳' }));
 app.get('/test-sentry', async () => {
   throw new Error('Test error for Sentry');
-  return { success: true }; // This won't be reached
 });
 app.register(authRoutes);
 app.register(generateRoutes);
@@ -181,13 +180,13 @@ async function startServer() {
   try {
     await connectToDatabases();
     
-    const port = parseInt(process.env.PORT || '3001', 10);
+    const port = parseInt(process.env.PORT ?? '3001', 10);
     await app.listen({ port, host: '0.0.0.0' });
     
     const address = app.server.address();
     const serverPort = typeof address === 'string' 
       ? address 
-      : address?.port || port;
+      : address?.port ?? port;
       
     app.log.info(`✅ Backend running at port ${serverPort}`);
   } catch (err) {

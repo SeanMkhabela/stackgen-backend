@@ -14,7 +14,7 @@ export async function initRedis() {
       console.warn('REDIS_URL not configured. Using default localhost:6379');
     }
 
-    const url = process.env.REDIS_URL || 'redis://localhost:6379';
+    const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
     
     redisClient = createClient({
       url,
