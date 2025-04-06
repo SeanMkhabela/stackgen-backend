@@ -6,7 +6,7 @@ export async function verifyJwt(request: FastifyRequest, reply: FastifyReply) {
   try {
     const authHeader = request.headers.authorization;
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader?.startsWith('Bearer ')) {
       reply.status(401).send({ error: 'Authentication required' });
       return;
     }

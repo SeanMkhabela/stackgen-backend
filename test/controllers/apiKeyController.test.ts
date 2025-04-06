@@ -38,7 +38,7 @@ vi.mock('mongoose', () => {
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import mongoose from 'mongoose';
 import { createApiKey, listApiKeys, revokeApiKey } from '../../controllers/apiKeyController';
-import apiKeyModule, { generateApiKey } from '../../utils/apiKey';
+import apiKeyModule from '../../utils/apiKey';
 
 const { ApiKey } = apiKeyModule;
 

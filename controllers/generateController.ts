@@ -71,125 +71,28 @@ export async function generateStack(request: FastifyRequest, reply: FastifyReply
     // Set CORS headers for all responses
     setCorsHeaders(reply);
 
-    // === Validate frontend ===
-    if (!isFrontend(frontend)) {
-      return sendErrorResponse(reply, 400, {
-        error: `Unsupported frontend: ${frontend}`,
-        message: `The frontend "${frontend}" is not supported. Please choose from: ${supportedStacks.frontends.map(f => supportedStacks.prettyNames[f]).join(', ')}.`,
-        availableFrontends: supportedStacks.frontends
-      });
-    }
+    // Validate stack combination
+    const validationError = validateStackCombination(frontend, backend, reply);
+    if (validationError) return validationError;
 
-    // === Validate backend ===
-    if (!isBackend(backend)) {
-      return sendErrorResponse(reply, 400, {
-        error: `Unsupported backend: ${backend}`,
-        message: `The backend "${backend}" is not supported. Please choose from: ${supportedStacks.backends.map(b => supportedStacks.prettyNames[b]).join(', ')}.`,
-        availableBackends: supportedStacks.backends
-      });
-    }
-
-    // === Validate compatibility ===
-    if (!supportedStacks.compatibility[frontend]?.includes(backend)) {
-      const compatibleBackends = supportedStacks.compatibility[frontend].map(b => supportedStacks.prettyNames[b]).join(', ');
-      return sendErrorResponse(reply, 400, {
-        error: `Incompatible stack combination: ${frontend} with ${backend}`,
-        message: `${supportedStacks.prettyNames[frontend]} is not recommended to use with ${supportedStacks.prettyNames[backend]}. For ${supportedStacks.prettyNames[frontend]}, we recommend: ${compatibleBackends}.`,
-        compatibleOptions: supportedStacks.compatibility[frontend]
-      });
-    }
-
+    // Create the stack name from validated inputs - now we know they are valid types
+    const validFrontend = frontend as Frontend;
+    const validBackend = backend as Backend;
+    const stackName = `${validFrontend}-${validBackend}` as StackName;
+    
+    // Try to get from cache first
+    const cachedResponse = await tryGetFromCache(stackName, reply);
+    if (cachedResponse) return cachedResponse;
+    
     // Find the stack template path
-    const stackName = `${frontend}-${backend}` as StackName;
-    
-    // Try to get from cache first if Redis is available
-    if (isRedisAvailable()) {
-      const cacheKey = `stack:${stackName}`;
-      const cachedData = await getCache<Buffer>(cacheKey);
-      
-      if (cachedData) {
-        console.log(`Cache hit for ${stackName}`);
-        // Set response headers for ZIP file
-        setCorsHeaders(reply);
-        reply.header('Content-Type', 'application/zip');
-        reply.header('Content-Disposition', `attachment; filename=${stackName}.zip`);
-        
-        // Make sure cachedData is a Buffer before sending
-        if (Buffer.isBuffer(cachedData)) {
-          return reply.send(cachedData);
-        } else if (typeof cachedData === 'object') {
-          // If it's an object but not a Buffer, stringify it
-          console.log('Converting cached object to string before sending');
-          return reply.send(JSON.stringify(cachedData));
-        } else {
-          // If we can't determine what it is, generate a new stack
-          console.log('Cached data is not in a usable format, generating new stack');
-        }
-      }
-      
-      console.log(`Cache miss for ${stackName}, generating new stack`);
-    } else {
-      console.log('Redis not available, skipping cache check');
-    }
-    
     const stackPath = findStackPath(stackName);
 
     // If stack template not found
     if (!stackPath) {
-      return handleMissingStack(reply, frontend, backend, stackName);
+      return handleMissingStack(reply, validFrontend, validBackend, stackName);
     }
 
-    // Set response headers for ZIP file
-    setCorsHeaders(reply);
-    reply.header('Content-Type', 'application/zip');
-    reply.header('Content-Disposition', `attachment; filename=${stackName}.zip`);
-
-    // Create and configure archive
-    const archive = archiver('zip', { zlib: { level: 9 } });
-    
-    // Setup cache writer if Redis is available
-    const cacheBuffers: Buffer[] = [];
-    let cacheStream: any = null;
-    
-    if (isRedisAvailable()) {
-      const stream = require('stream');
-      cacheStream = new stream.Writable({
-        write(chunk: Buffer, encoding: string, callback: Function) {
-          cacheBuffers.push(Buffer.from(chunk));
-          callback();
-        }
-      });
-      archive.pipe(cacheStream);
-    }
-    
-    // Pipe to response
-    archive.pipe(reply.raw);
-
-    // Add frontend and backend directories to archive
-    const frontendPath = path.join(stackPath, 'frontend');
-    const backendPath = path.join(stackPath, 'backend');
-
-    if (fs.existsSync(frontendPath)) addDirectoryToArchive(frontendPath, 'frontend', archive);
-    if (fs.existsSync(backendPath)) addDirectoryToArchive(backendPath, 'backend', archive);
-
-    // Handle archive errors
-    archive.on('error', function(err) {
-      console.error('Archive error:', err);
-      throw err;
-    });
-
-    // Finalize the archive and store in cache
-    await archive.finalize();
-    
-    // Save to cache if Redis is available
-    if (isRedisAvailable() && cacheBuffers.length > 0) {
-      const cacheData = Buffer.concat(cacheBuffers);
-      const cacheKey = `stack:${stackName}`;
-      
-      // Cache for 24 hours (86400 seconds)
-      await setCache(cacheKey, cacheData, 86400);
-      console.log(`Saved ${stackName} to cache (${cacheData.length} bytes)`);
-    }
+    return await createAndSendArchive(stackPath, stackName, reply);
     
   } catch (error) {
     console.error('Error generating stack:', error);
@@ -198,6 +101,138 @@ export async function generateStack(request: FastifyRequest, reply: FastifyReply
       message: 'An error occurred while generating the stack'
     });
   }
+}
+
+/**
+ * Validates frontend and backend combination
+ * Returns error response if invalid, otherwise null
+ */
+function validateStackCombination(frontend: string, backend: string, reply: FastifyReply) {
+  // Validate frontend
+  if (!isFrontend(frontend)) {
+    return sendErrorResponse(reply, 400, {
+      error: `Unsupported frontend: ${frontend}`,
+      message: `The frontend "${frontend}" is not supported. Please choose from: ${supportedStacks.frontends.map(f => supportedStacks.prettyNames[f]).join(', ')}.`,
+      availableFrontends: supportedStacks.frontends
+    });
+  }
+
+  // Validate backend
+  if (!isBackend(backend)) {
+    return sendErrorResponse(reply, 400, {
+      error: `Unsupported backend: ${backend}`,
+      message: `The backend "${backend}" is not supported. Please choose from: ${supportedStacks.backends.map(b => supportedStacks.prettyNames[b]).join(', ')}.`,
+      availableBackends: supportedStacks.backends
+    });
+  }
+
+  // Validate compatibility - if we reached here, frontend and backend are valid types
+  if (!supportedStacks.compatibility[frontend]?.includes(backend)) {
+    const compatibleBackends = supportedStacks.compatibility[frontend].map(b => supportedStacks.prettyNames[b]).join(', ');
+    return sendErrorResponse(reply, 400, {
+      error: `Incompatible stack combination: ${frontend} with ${backend}`,
+      message: `${supportedStacks.prettyNames[frontend]} is not recommended to use with ${supportedStacks.prettyNames[backend]}. For ${supportedStacks.prettyNames[frontend]}, we recommend: ${compatibleBackends}.`,
+      compatibleOptions: supportedStacks.compatibility[frontend]
+    });
+  }
+  
+  return null;
+}
+
+/**
+ * Attempts to retrieve the stack from cache
+ * Returns the cached response if found, otherwise null
+ */
+async function tryGetFromCache(stackName: StackName, reply: FastifyReply) {
+  if (!isRedisAvailable()) {
+    console.log('Redis not available, skipping cache check');
+    return null;
+  }
+  
+  const cacheKey = `stack:${stackName}`;
+  const cachedData = await getCache<Buffer>(cacheKey);
+  
+  if (!cachedData) {
+    console.log(`Cache miss for ${stackName}, generating new stack`);
+    return null;
+  }
+  
+  console.log(`Cache hit for ${stackName}`);
+  
+  // Set response headers for ZIP file
+  setCorsHeaders(reply);
+  reply.header('Content-Type', 'application/zip');
+  reply.header('Content-Disposition', `attachment; filename=${stackName}.zip`);
+  
+  // Handle different types of cached data
+  if (Buffer.isBuffer(cachedData)) {
+    return reply.send(cachedData);
+  } else if (typeof cachedData === 'object') {
+    console.log('Converting cached object to string before sending');
+    return reply.send(JSON.stringify(cachedData));
+  }
+  
+  console.log('Cached data is not in a usable format, generating new stack');
+  return null;
+}
+
+/**
+ * Creates and sends a ZIP archive of the stack
+ */
+async function createAndSendArchive(stackPath: string, stackName: StackName, reply: FastifyReply) {
+  // Set response headers for ZIP file
+  setCorsHeaders(reply);
+  reply.header('Content-Type', 'application/zip');
+  reply.header('Content-Disposition', `attachment; filename=${stackName}.zip`);
+
+  // Create and configure archive
+  const archive = archiver('zip', { zlib: { level: 9 } });
+  
+  // Setup cache writer if Redis is available
+  const cacheBuffers: Buffer[] = [];
+  let cacheStream: any = null;
+  
+  if (isRedisAvailable()) {
+    const stream = require('stream');
+    cacheStream = new stream.Writable({
+      write(chunk: Buffer, encoding: string, callback: Function) {
+        cacheBuffers.push(Buffer.from(chunk));
+        callback();
+      }
+    });
+    archive.pipe(cacheStream);
+  }
+  
+  // Pipe to response
+  archive.pipe(reply.raw);
+
+  // Add frontend and backend directories to archive
+  const frontendPath = path.join(stackPath, 'frontend');
+  const backendPath = path.join(stackPath, 'backend');
+
+  if (fs.existsSync(frontendPath)) addDirectoryToArchive(frontendPath, 'frontend', archive);
+  if (fs.existsSync(backendPath)) addDirectoryToArchive(backendPath, 'backend', archive);
+
+  // Handle archive errors
+  archive.on('error', function(err) {
+    console.error('Archive error:', err);
+    throw err;
+  });
+
+  // Finalize the archive and store in cache
+  await archive.finalize();
+  
+  // Save to cache if Redis is available
+  if (isRedisAvailable() && cacheBuffers.length > 0) {
+    const cacheData = Buffer.concat(cacheBuffers);
+    const cacheKey = `stack:${stackName}`;
+    
+    // Cache for 24 hours (86400 seconds)
+    await setCache(cacheKey, cacheData, 86400);
+    console.log(`Saved ${stackName} to cache (${cacheData.length} bytes)`);
+  }
+  
+  return reply;
 }
 
 // Type guard for Frontend

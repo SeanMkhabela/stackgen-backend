@@ -6,7 +6,7 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import path from 'path';
 import fs from 'fs';
 import { initSentry, setupSentryFastifyPlugin, captureException } from './utils/sentry';
-import { initRedis, setCache, getCache, isRedisAvailable } from './utils/redis';
+import { initRedis, setCache, getCache,} from './utils/redis';
 
 import authRoutes from './routes/auth';
 import generateRoutes from './routes/generate';
@@ -71,8 +71,8 @@ app.register(fastifyRateLimit, {
   skipOnError: true, // Continue if something fails
   keyGenerator: (request) => {
     // Use API key or IP address as rate limit key
-    return request.headers['x-api-key']?.toString() || 
-           request.headers['authorization']?.toString() || 
+    return request.headers['x-api-key']?.toString() ?? 
+           request.headers['authorization']?.toString() ?? 
            request.ip;
   }
 });

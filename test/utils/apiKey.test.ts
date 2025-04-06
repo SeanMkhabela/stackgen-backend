@@ -1,7 +1,7 @@
 // Mock mongoose before imports
 vi.mock('mongoose', () => {
   return {
-    Schema: class Schema {},
+    Schema: function(definition: Record<string, any>) { return definition; },
     model: vi.fn(),
     models: {
       ApiKey: { 
