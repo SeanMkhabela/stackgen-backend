@@ -28,6 +28,153 @@ To test if Sentry is working correctly:
    - You can see detailed information about the error
    - User context, tags, and other metadata are included
 
+## CI/CD Pipeline
+
+This project uses GitHub Actions for continuous integration and deployment:
+
+### Workflows
+
+1. **Pull Request Checks** (`.github/workflows/pull-request.yml`)
+   - Runs tests and linting on all pull requests to the main branch
+   - Blocks merging if tests or linting fail
+
+2. **Continuous Integration** (`.github/workflows/ci.yml`)
+   - Runs on both pull requests and pushes to main
+   - Tests code with multiple Node.js versions (18.x and 20.x)
+   - Uploads test results as artifacts
+
+3. **Deployment** (`.github/workflows/deploy.yml`)
+   - Triggered after successful merge to main
+   - Runs tests again to ensure quality
+   - Deploys code to your production environment
+
+4. **Branch Protection** (`.github/workflows/branch-protection.yml`)
+   - Sets up GitHub branch protection rules automatically
+   - Requires passing CI checks before merging
+   - Requires code review approval
+
+### Running Tests Locally
+
+Before pushing changes, run tests locally to ensure they pass:
+
+```bash
+# Run tests once
+npm test
+
+# Run tests in watch mode during development
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+## Auth System and Testing
+
+The application includes a complete authentication system with:
+- User signup and signin endpoints
+- Password hashing with bcrypt
+- JWT token generation for authenticated sessions
+
+### Auth Endpoints
+
+- `POST /auth/signup`: Create a new user account
+  - Body: `{ email: string, password: string }`
+  - Returns: Success message or error
+
+- `POST /auth/signin`: Authenticate with credentials
+  - Body: `{ email: string, password: string }`
+  - Returns: Success message with JWT token or error
+
+### Authentication Testing
+
+The auth system is thoroughly tested with both unit and integration tests:
+
+- **Controller Unit Tests**: Test auth functions in isolation with mocked dependencies
+- **Route Integration Tests**: Test the complete HTTP request/response flow
+
+#### Testing Best Practices
+
+Here are the key patterns and fixes implemented in the auth tests:
+
+1. **Proper Mock Implementation for Mongoose Models**:
+   ```typescript
+   // Create a proper constructor function for the User model
+   const UserMock = function(this: any, data: any) {
+     Object.assign(this, data);
+     this.save = SaveMock; // Mock the save method on each instance
+     return this;
+   };
+   
+   // Add static methods to the constructor
+   return {
+     User: Object.assign(UserMock, {
+       findOne: vi.fn() // Add static methods like findOne
+     })
+   };
+   ```
+
+2. **Correctly Mocking CommonJS Modules (bcrypt)**:
+   ```typescript
+   vi.mock('bcrypt', () => {
+     const mockHash = vi.fn().mockResolvedValue('hashed_password');
+     const mockCompare = vi.fn().mockResolvedValue(true);
+     
+     return {
+       __esModule: true, // Important for CommonJS modules
+       default: {
+         hash: mockHash,
+         compare: mockCompare
+       },
+       hash: mockHash,
+       compare: mockCompare
+     };
+   });
+   ```
+
+3. **Robust HTTP Response Handling**:
+   ```typescript
+   // Separate status and send calls for better testability
+   if (!user) {
+     reply.status(404);
+     return reply.send({ error: 'User not found' });
+   }
+   ```
+
+4. **Proper Method Chaining in Mocks**:
+   ```typescript
+   mockReply = {
+     send: vi.fn().mockReturnThis(),
+     status: vi.fn().mockReturnThis()
+   };
+   ```
+
+5. **Explicit Mock Resetting**:
+   ```typescript
+   beforeEach(() => {
+     // Reset all mocks between tests
+     vi.resetAllMocks();
+     
+     // Set default behaviors for commonly used mocks
+     vi.mocked(bcrypt.compare).mockImplementation(() => Promise.resolve(true));
+     vi.mocked(jwt.signToken).mockReturnValue('test_token');
+   });
+   ```
+
+#### Running Auth Tests
+
+To run the auth tests:
+
+```bash
+# Run all tests
+npx vitest run
+
+# Run just the auth controller tests
+npx vitest run test/controllers/authController.test.ts
+
+# Run the auth route tests  
+npx vitest run test/routes/auth.test.ts
+```
+
 ## Redis Setup (Optional)
 
 Redis is used for caching but is optional - the application will work without it.

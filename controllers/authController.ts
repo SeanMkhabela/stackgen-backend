@@ -7,7 +7,10 @@ export async function signupHandler(request: FastifyRequest, reply: FastifyReply
   const { email, password } = request.body as { email: string; password: string };
 
   const existing = await User.findOne({ email });
-  if (existing) return reply.status(409).send({ error: 'User already exists' });
+  if (existing) {
+    reply.status(409);
+    return reply.send({ error: 'User already exists' });
+  }
 
   const hashedPassword = await bcrypt.hash(password, 10);
   const user = new User({ email, password: hashedPassword });
@@ -20,10 +23,16 @@ export async function signinHandler(request: FastifyRequest, reply: FastifyReply
   const { email, password } = request.body as { email: string; password: string };
 
   const user = await User.findOne({ email });
-  if (!user) return reply.status(404).send({ error: 'User not found' });
+  if (!user) {
+    reply.status(404);
+    return reply.send({ error: 'User not found' });
+  }
 
   const isMatch = await bcrypt.compare(password, user.password);
-  if (!isMatch) return reply.status(401).send({ error: 'Invalid password' });
+  if (!isMatch) {
+    reply.status(401);
+    return reply.send({ error: 'Invalid password' });
+  }
 
   const token = signToken({ id: user._id, email: user.email });
 
