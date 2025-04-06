@@ -87,10 +87,23 @@ export async function setCache(key: string, value: any, expireInSeconds?: number
   
   try {
     const client = getRedisClient();
-    const stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+    let stringValue;
+    
+    // Handle Buffer data differently
+    if (Buffer.isBuffer(value)) {
+      stringValue = value.toString('base64');
+      // Add a prefix to identify this as base64-encoded buffer
+      await client.set(`${key}:type`, 'buffer');
+    } else {
+      stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+    }
     
     if (expireInSeconds) {
       await client.set(key, stringValue, { EX: expireInSeconds });
+      if (Buffer.isBuffer(value)) {
+        // Set the same expiration for the type
+        await client.set(`${key}:type`, 'buffer', { EX: expireInSeconds });
+      }
     } else {
       await client.set(key, stringValue);
     }
@@ -114,6 +127,13 @@ export async function getCache<T = any>(key: string): Promise<T | null> {
     const value = await client.get(key);
     
     if (!value) return null;
+    
+    // Check if this is a Buffer type
+    const valueType = await client.get(`${key}:type`);
+    if (valueType === 'buffer') {
+      // Convert from base64 string back to Buffer
+      return Buffer.from(value, 'base64') as unknown as T;
+    }
     
     try {
       return JSON.parse(value) as T;

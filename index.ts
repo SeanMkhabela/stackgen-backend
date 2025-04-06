@@ -2,13 +2,15 @@ import Fastify from 'fastify';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
 import fastifyCors from '@fastify/cors';
+import fastifyRateLimit from '@fastify/rate-limit';
 import path from 'path';
 import fs from 'fs';
 import { initSentry, setupSentryFastifyPlugin, captureException } from './utils/sentry';
-import { initRedis, setCache, getCache } from './utils/redis';
+import { initRedis, setCache, getCache,} from './utils/redis';
 
 import authRoutes from './routes/auth';
 import generateRoutes from './routes/generate';
+import apiKeyRoutes from './routes/apiKeys';
 
 // Load environment variables
 dotenv.config();
@@ -61,6 +63,20 @@ app.register(fastifyCors, {
   credentials: true
 });
 
+// Configure rate limiting
+app.register(fastifyRateLimit, {
+  global: true,
+  max: 100, // Default max requests per window
+  timeWindow: '1 minute',
+  skipOnError: true, // Continue if something fails
+  keyGenerator: (request) => {
+    // Use API key or IP address as rate limit key
+    return request.headers['x-api-key']?.toString() ?? 
+           request.headers['authorization']?.toString() ?? 
+           request.ip;
+  }
+});
+
 // Add a global hook for all routes to ensure CORS headers
 app.addHook('onRequest', (request, reply, done) => {
   reply.header('Access-Control-Allow-Origin', '*');
@@ -97,6 +113,7 @@ app.get('/test-sentry', async () => {
 });
 app.register(authRoutes);
 app.register(generateRoutes);
+app.register(apiKeyRoutes);
 
 // Static boilerplate download route
 app.get('/generate/:stack', async (request, reply) => {
