@@ -7,13 +7,16 @@ export interface ValidationError {
   details?: any;
 }
 
-export function validateStackCombination(frontend: string, backend: string): ValidationError | null {
+export function validateStackCombination(
+  frontend: string,
+  backend: string
+): ValidationError | null {
   // Validate frontend
   if (!isFrontend(frontend)) {
     return {
       error: `Unsupported frontend: ${frontend}`,
       message: `The frontend "${frontend}" is not supported. Please choose from: ${supportedStacks.frontends.map(f => supportedStacks.prettyNames[f]).join(', ')}.`,
-      details: { availableFrontends: supportedStacks.frontends }
+      details: { availableFrontends: supportedStacks.frontends },
     };
   }
 
@@ -22,20 +25,22 @@ export function validateStackCombination(frontend: string, backend: string): Val
     return {
       error: `Unsupported backend: ${backend}`,
       message: `The backend "${backend}" is not supported. Please choose from: ${supportedStacks.backends.map(b => supportedStacks.prettyNames[b]).join(', ')}.`,
-      details: { availableBackends: supportedStacks.backends }
+      details: { availableBackends: supportedStacks.backends },
     };
   }
 
   // Validate compatibility
   if (!supportedStacks.compatibility[frontend]?.includes(backend)) {
-    const compatibleBackends = supportedStacks.compatibility[frontend].map(b => supportedStacks.prettyNames[b]).join(', ');
+    const compatibleBackends = supportedStacks.compatibility[frontend]
+      .map(b => supportedStacks.prettyNames[b])
+      .join(', ');
     return {
       error: `Incompatible stack combination: ${frontend} with ${backend}`,
       message: `${supportedStacks.prettyNames[frontend]} is not recommended to use with ${supportedStacks.prettyNames[backend]}. For ${supportedStacks.prettyNames[frontend]}, we recommend: ${compatibleBackends}.`,
-      details: { compatibleOptions: supportedStacks.compatibility[frontend] }
+      details: { compatibleOptions: supportedStacks.compatibility[frontend] },
     };
   }
-  
+
   return null;
 }
 
@@ -43,28 +48,28 @@ export function validatePassword(password: string): ValidationError | null {
   if (!password || password.length < 8) {
     return {
       error: 'Invalid password',
-      message: 'Password must be at least 8 characters long'
+      message: 'Password must be at least 8 characters long',
     };
   }
 
   if (!/[A-Z]/.test(password)) {
     return {
       error: 'Invalid password',
-      message: 'Password must contain at least one uppercase letter'
+      message: 'Password must contain at least one uppercase letter',
     };
   }
 
   if (!/[a-z]/.test(password)) {
     return {
       error: 'Invalid password',
-      message: 'Password must contain at least one lowercase letter'
+      message: 'Password must contain at least one lowercase letter',
     };
   }
 
   if (!/\d/.test(password)) {
     return {
       error: 'Invalid password',
-      message: 'Password must contain at least one number'
+      message: 'Password must contain at least one number',
     };
   }
 
@@ -76,13 +81,17 @@ export function validateEmail(email: string): ValidationError | null {
   if (!email || !emailRegex.test(email)) {
     return {
       error: 'Invalid email',
-      message: 'Please provide a valid email address'
+      message: 'Please provide a valid email address',
     };
   }
   return null;
 }
 
-export function sendErrorResponse(reply: FastifyReply, statusCode: number, payload: ValidationError) {
+export function sendErrorResponse(
+  reply: FastifyReply,
+  statusCode: number,
+  payload: ValidationError
+) {
   reply.status(statusCode);
   return reply.send(payload);
-} 
+}

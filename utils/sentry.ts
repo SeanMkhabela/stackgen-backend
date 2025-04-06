@@ -13,9 +13,11 @@ export function initSentry(): boolean {
   }
 
   // Check if Sentry DSN is properly configured
-  if (!process.env.SENTRY_DSN || 
-      process.env.SENTRY_DSN.includes('<your-sentry-key>') || 
-      process.env.SENTRY_DSN.startsWith('#')) {
+  if (
+    !process.env.SENTRY_DSN ||
+    process.env.SENTRY_DSN.includes('<your-sentry-key>') ||
+    process.env.SENTRY_DSN.startsWith('#')
+  ) {
     console.log('Sentry DSN not configured. Error tracking is disabled.');
     return false;
   }
@@ -56,21 +58,23 @@ export function initSentry(): boolean {
 export function captureException(error: Error, context?: Record<string, any>) {
   // Always log to console for local debugging
   console.error('[ERROR]', error.message, context);
-  
+
   // Check if Sentry should be used
   if (process.env.DISABLE_SENTRY === 'true') {
     return; // Explicitly disabled
   }
-  
-  if (!process.env.SENTRY_DSN || 
-      process.env.SENTRY_DSN.includes('<your-sentry-key>') ||
-      process.env.SENTRY_DSN.startsWith('#')) {
+
+  if (
+    !process.env.SENTRY_DSN ||
+    process.env.SENTRY_DSN.includes('<your-sentry-key>') ||
+    process.env.SENTRY_DSN.startsWith('#')
+  ) {
     return; // Not configured
   }
-  
+
   try {
-    Sentry.captureException(error, { 
-      extra: context 
+    Sentry.captureException(error, {
+      extra: context,
     });
   } catch (sentryError) {
     console.error('Failed to send error to Sentry:', sentryError);
@@ -86,14 +90,16 @@ export function setupSentryFastifyPlugin(app: any) {
   if (process.env.DISABLE_SENTRY === 'true') {
     return;
   }
-  
+
   // Skip if Sentry is not configured
-  if (!process.env.SENTRY_DSN || 
-      process.env.SENTRY_DSN.includes('<your-sentry-key>') ||
-      process.env.SENTRY_DSN.startsWith('#')) {
+  if (
+    !process.env.SENTRY_DSN ||
+    process.env.SENTRY_DSN.includes('<your-sentry-key>') ||
+    process.env.SENTRY_DSN.startsWith('#')
+  ) {
     return;
   }
-  
+
   try {
     // Add hook to track requests
     app.addHook('onRequest', (request: any, reply: any, done: any) => {
@@ -115,15 +121,14 @@ export function setupSentryFastifyPlugin(app: any) {
         }
         Sentry.captureException(error);
       });
-      
+
       reply.status(500).send({
         error: 'Internal Server Error',
-        message: process.env.NODE_ENV === 'production' 
-          ? 'An unexpected error occurred' 
-          : error.message
+        message:
+          process.env.NODE_ENV === 'production' ? 'An unexpected error occurred' : error.message,
       });
     });
-    
+
     console.log('Sentry error tracking middleware attached to Fastify');
   } catch (error) {
     console.error('Failed to setup Sentry Fastify plugin:', error);

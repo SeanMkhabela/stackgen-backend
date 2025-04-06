@@ -12,7 +12,7 @@ jobs:
   set-branch-protection:
     runs-on: ubuntu-latest
     if: github.repository_owner == github.actor # Only run for repo owners
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -24,7 +24,7 @@ jobs:
           script: |
             const owner = context.repo.owner;
             const repo = context.repo.repo;
-            
+
             // Set branch protection rules for main branch
             await github.rest.repos.updateBranchProtection({
               owner,
@@ -43,5 +43,5 @@ jobs:
               },
               restrictions: null
             });
-            
-            console.log('Branch protection rules have been set for main branch'); 
+
+            console.log('Branch protection rules have been set for main branch');

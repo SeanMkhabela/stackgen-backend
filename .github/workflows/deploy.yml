@@ -2,74 +2,74 @@ name: Deploy to Production
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Run tests
-      run: npm test
-      env:
-        NODE_ENV: test
-        MONGO_URI_TEST: mongodb://localhost:27017/test
-        JWT_SECRET: test_secret_for_ci
+      - name: Run tests
+        run: npm test
+        env:
+          NODE_ENV: test
+          MONGO_URI_TEST: mongodb://localhost:27017/test
+          JWT_SECRET: test_secret_for_ci
 
   deploy:
     needs: test
     runs-on: ubuntu-latest
-    if: success()  # Only deploy if tests pass
-    
+    if: success() # Only deploy if tests pass
+
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: '20'
-        cache: 'npm'
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - name: Install dependencies
+        run: npm ci
 
-    - name: Build application
-      run: npm run build || echo "No build script found"
-      
-    # Add your deployment steps here
-    # For example, if deploying to Heroku:
-    # - name: Deploy to Heroku
-    #   uses: akhileshns/heroku-deploy@v3.12.14
-    #   with:
-    #     heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
-    #     heroku_app_name: "your-app-name"
-    #     heroku_email: ${{ secrets.HEROKU_EMAIL }}
-    
-    # Or if using AWS:
-    # - name: Configure AWS credentials
-    #   uses: aws-actions/configure-aws-credentials@v1
-    #   with:
-    #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-    #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-    #     aws-region: us-east-1
-    
-    # - name: Deploy to AWS
-    #   run: aws s3 sync ./build s3://your-bucket-name
-    
-    - name: Deployment placeholder
-      run: |
-        echo "Deployment would happen here"
-        echo "Update this workflow with your actual deployment steps" 
+      - name: Build application
+        run: npm run build || echo "No build script found"
+
+      # Add your deployment steps here
+      # For example, if deploying to Heroku:
+      # - name: Deploy to Heroku
+      #   uses: akhileshns/heroku-deploy@v3.12.14
+      #   with:
+      #     heroku_api_key: ${{ secrets.HEROKU_API_KEY }}
+      #     heroku_app_name: "your-app-name"
+      #     heroku_email: ${{ secrets.HEROKU_EMAIL }}
+
+      # Or if using AWS:
+      # - name: Configure AWS credentials
+      #   uses: aws-actions/configure-aws-credentials@v1
+      #   with:
+      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      #     aws-region: us-east-1
+
+      # - name: Deploy to AWS
+      #   run: aws s3 sync ./build s3://your-bucket-name
+
+      - name: Deployment placeholder
+        run: |
+          echo "Deployment would happen here"
+          echo "Update this workflow with your actual deployment steps"

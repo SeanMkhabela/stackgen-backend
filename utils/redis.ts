@@ -15,23 +15,25 @@ export async function initRedis() {
     }
 
     const url = process.env.REDIS_URL ?? 'redis://localhost:6379';
-    
+
     redisClient = createClient({
       url,
       socket: {
-        reconnectStrategy: (retries) => {
+        reconnectStrategy: retries => {
           // Stop reconnecting after 5 attempts and disable Redis
           if (retries > 5) {
-            console.warn('Failed to connect to Redis after multiple attempts. Redis caching disabled.');
+            console.warn(
+              'Failed to connect to Redis after multiple attempts. Redis caching disabled.'
+            );
             redisEnabled = false;
             return false; // stop reconnecting
           }
           return Math.min(retries * 50, 1000); // reconnect after increasing delay
-        }
-      }
+        },
+      },
     });
 
-    redisClient.on('error', (err) => {
+    redisClient.on('error', err => {
       console.error('Redis Client Error:', err);
       // Only capture the first few errors to avoid spamming Sentry
       if (redisEnabled) {
@@ -49,7 +51,7 @@ export async function initRedis() {
     });
 
     await redisClient.connect();
-    
+
     return redisClient;
   } catch (error) {
     console.error('Failed to connect to Redis:', error);
@@ -84,11 +86,11 @@ export async function setCache(key: string, value: any, expireInSeconds?: number
   if (!isRedisAvailable()) {
     return; // Silently fail if Redis is not available
   }
-  
+
   try {
     const client = getRedisClient();
     let stringValue;
-    
+
     // Handle Buffer data differently
     if (Buffer.isBuffer(value)) {
       stringValue = value.toString('base64');
@@ -97,7 +99,7 @@ export async function setCache(key: string, value: any, expireInSeconds?: number
     } else {
       stringValue = typeof value === 'string' ? value : JSON.stringify(value);
     }
-    
+
     if (expireInSeconds) {
       await client.set(key, stringValue, { EX: expireInSeconds });
       if (Buffer.isBuffer(value)) {
@@ -121,20 +123,20 @@ export async function getCache<T = any>(key: string): Promise<T | null> {
   if (!isRedisAvailable()) {
     return null; // Redis not available, return null
   }
-  
+
   try {
     const client = getRedisClient();
     const value = await client.get(key);
-    
+
     if (!value) return null;
-    
+
     // Check if this is a Buffer type
     const valueType = await client.get(`${key}:type`);
     if (valueType === 'buffer') {
       // Convert from base64 string back to Buffer
       return Buffer.from(value, 'base64') as unknown as T;
     }
-    
+
     try {
       return JSON.parse(value) as T;
     } catch {
@@ -155,7 +157,7 @@ export async function deleteCache(key: string): Promise<boolean> {
   if (!isRedisAvailable()) {
     return false; // Redis not available
   }
-  
+
   try {
     const client = getRedisClient();
     await client.del(key);
@@ -179,4 +181,4 @@ export async function closeRedis() {
       console.error('Error closing Redis connection:', error);
     }
   }
-} 
+}

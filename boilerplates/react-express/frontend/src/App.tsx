@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
-import axios from 'axios'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect } from 'react';
+import axios from 'axios';
+import reactLogo from './assets/react.svg';
+import viteLogo from '/vite.svg';
+import './App.css';
 
 // Define types for our state
 interface StatusData {
@@ -11,49 +11,49 @@ interface StatusData {
 }
 
 function App() {
-  const [count, setCount] = useState(0)
-  const [backendMessage, setBackendMessage] = useState('')
-  const [status, setStatus] = useState<StatusData>({ status: '', timestamp: '' })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [inputData, setInputData] = useState('')
-  const [echoResponse, setEchoResponse] = useState<Record<string, any> | null>(null)
+  const [count, setCount] = useState(0);
+  const [backendMessage, setBackendMessage] = useState('');
+  const [status, setStatus] = useState<StatusData>({ status: '', timestamp: '' });
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [inputData, setInputData] = useState('');
+  const [echoResponse, setEchoResponse] = useState<Record<string, any> | null>(null);
 
   // Fetch basic API message on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        setLoading(true)
-        const response = await axios.get('/api')
-        setBackendMessage(response.data.message)
-        
-        // Also fetch the status
-        const statusResponse = await axios.get('/api/status')
-        setStatus(statusResponse.data)
-      } catch (err) {
-        setError('Failed to connect to the backend service')
-        console.error('API error:', err)
-      } finally {
-        setLoading(false)
-      }
-    }
+        setLoading(true);
+        const response = await axios.get('/api');
+        setBackendMessage(response.data.message);
 
-    fetchData()
-  }, [])
+        // Also fetch the status
+        const statusResponse = await axios.get('/api/status');
+        setStatus(statusResponse.data);
+      } catch (err) {
+        setError('Failed to connect to the backend service');
+        console.error('API error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   // Handle echo API call
   const handleEcho = async () => {
     try {
-      setLoading(true)
-      const response = await axios.post('/api/echo', { text: inputData })
-      setEchoResponse(response.data)
+      setLoading(true);
+      const response = await axios.post('/api/echo', { text: inputData });
+      setEchoResponse(response.data);
     } catch (err) {
-      setError('Error sending data to backend')
-      console.error('Echo API error:', err)
+      setError('Error sending data to backend');
+      console.error('Echo API error:', err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="container">
@@ -66,35 +66,35 @@ function App() {
         </a>
       </div>
       <h1>React + Vite + Express</h1>
-      
+
       <div className="card">
-        <button onClick={() => setCount((prevCount) => prevCount + 1)}>
-          count is {count}
-        </button>
+        <button onClick={() => setCount(prevCount => prevCount + 1)}>count is {count}</button>
       </div>
-      
+
       {/* Backend connectivity section */}
       <div className="api-section">
         <h2>Backend Connectivity Demo</h2>
-        
+
         {loading && <p className="loading">Loading data from backend...</p>}
         {error && <p className="error">{error}</p>}
-        
+
         {backendMessage && (
           <div className="api-response">
             <h3>API Response:</h3>
             <p>{backendMessage}</p>
           </div>
         )}
-        
+
         {status.status && (
           <div className="status-response">
             <h3>Backend Status:</h3>
-            <p>Status: <span className="status-badge">{status.status}</span></p>
+            <p>
+              Status: <span className="status-badge">{status.status}</span>
+            </p>
             <p>Last updated: {new Date(status.timestamp).toLocaleString()}</p>
           </div>
         )}
-        
+
         {/* Echo API demo */}
         <div className="echo-demo">
           <h3>Echo API Test:</h3>
@@ -109,7 +109,7 @@ function App() {
               Send to Backend
             </button>
           </div>
-          
+
           {echoResponse && (
             <div className="echo-response">
               <h4>Backend Echo Response:</h4>
@@ -118,12 +118,12 @@ function App() {
           )}
         </div>
       </div>
-      
+
       <p className="read-the-docs">
         This template demonstrates React-Express connectivity via API calls
       </p>
     </div>
-  )
+  );
 }
 
-export default App
+export default App;

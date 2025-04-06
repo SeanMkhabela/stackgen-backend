@@ -18,13 +18,15 @@ This means you can start developing your full-stack application without worrying
 Our platform supports various combinations of frontend and backend technologies:
 
 ### Frontend Options
+
 - **React** - A JavaScript library for building user interfaces
 - **Next.js** - React framework with SSR capabilities
-- **Vue.js** - Progressive JavaScript framework 
+- **Vue.js** - Progressive JavaScript framework
 - **Angular** - Platform for building mobile and desktop web apps
 - **Svelte** - Compiler-based framework for building UIs
 
 ### Backend Options
+
 - **Express.js** - Fast, unopinionated, minimalist web framework for Node.js
 - **Fastify** - Fast and low overhead web framework for Node.js
 - **NestJS** - Progressive Node.js framework for building server-side applications
@@ -32,6 +34,7 @@ Our platform supports various combinations of frontend and backend technologies:
 - **Laravel** - PHP web application framework
 
 ### Features
+
 - TypeScript integration
 - ESLint configuration
 - Tailwind CSS setup
@@ -41,17 +44,20 @@ Our platform supports various combinations of frontend and backend technologies:
 ## Getting Started
 
 This boilerplate includes two main folders:
+
 - `frontend/` - A React application built with Vite and TypeScript
 - `backend/` - An Express.js API server
 
 ### Installation
 
 1. **Setup the Backend**
+
    ```bash
    cd backend
    npm install
    node index.js
    ```
+
    The backend will run on port 3000 by default.
 
 2. **Setup the Frontend**
@@ -78,6 +84,7 @@ This boilerplate includes two main folders:
 ### Why are node_modules not included?
 
 The `node_modules` directories are intentionally excluded from this boilerplate to:
+
 - Reduce the download size significantly
 - Avoid platform-specific binaries that may not work on your system
 - Follow best practices for distributing code templates
@@ -85,10 +92,12 @@ The `node_modules` directories are intentionally excluded from this boilerplate 
 ### Next Steps
 
 Once you have both services running:
+
 1. The frontend will be available at: http://localhost:5173
 2. The backend API will be available at: http://localhost:3000
 
 You can start building your application by:
+
 - Adding components to the React frontend
 - Creating new API endpoints in the Express backend
 - Connecting a database to the backend

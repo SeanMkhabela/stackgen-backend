@@ -23,8 +23,8 @@ export async function signupHandler(request: FastifyRequest, reply: FastifyReply
     const user = new User({ email, password: hashedPassword });
     await user.save();
 
-    return reply.status(200).send({ 
-      message: 'User created successfully ✅'
+    return reply.status(200).send({
+      message: 'User created successfully ✅',
     });
   } catch (error) {
     console.error('Error in signup:', error);
@@ -60,9 +60,9 @@ export async function signinHandler(request: FastifyRequest, reply: FastifyReply
     // Generate token
     const token = signToken({ id: user._id, email: user.email });
 
-    return reply.send({ 
-      message: 'Signed in successfully ✅', 
-      token
+    return reply.send({
+      message: 'Signed in successfully ✅',
+      token,
     });
   } catch (error) {
     console.error('Error in signin:', error);

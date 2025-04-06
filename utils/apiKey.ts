@@ -9,7 +9,7 @@ const apiKeySchema = new mongoose.Schema({
   owner: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   createdAt: { type: Date, default: Date.now },
   lastUsed: { type: Date, default: null },
-  enabled: { type: Boolean, default: true }
+  enabled: { type: Boolean, default: true },
 });
 
 // Create model if it doesn't exist
@@ -24,9 +24,9 @@ export function generateApiKey(): string {
 export async function validateApiKey(request: FastifyRequest, reply: FastifyReply) {
   try {
     // Get the API key from the header or query parameter
-    const apiKey = 
-      request.headers['x-api-key'] || 
-      (request.query as Record<string, string | string[]>)['api_key'] as string;
+    const apiKey =
+      request.headers['x-api-key'] ||
+      ((request.query as Record<string, string | string[]>)['api_key'] as string);
 
     // If no API key is provided
     if (!apiKey) {
@@ -35,9 +35,9 @@ export async function validateApiKey(request: FastifyRequest, reply: FastifyRepl
     }
 
     // Find the API key in the database
-    const keyDoc = await ApiKey.findOne({ 
+    const keyDoc = await ApiKey.findOne({
       key: apiKey,
-      enabled: true
+      enabled: true,
     });
 
     // If the API key is invalid
@@ -68,5 +68,5 @@ declare module 'fastify' {
 export default {
   ApiKey,
   generateApiKey,
-  validateApiKey
-}; 
+  validateApiKey,
+};

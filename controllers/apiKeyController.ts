@@ -7,7 +7,7 @@ const { ApiKey } = apiKeyUtil;
 // Rate limiting configuration
 const RATE_LIMIT = {
   keysPerUser: 5, // Maximum number of API keys per user
-  windowMs: 24 * 60 * 60 * 1000 // 24 hours
+  windowMs: 24 * 60 * 60 * 1000, // 24 hours
 };
 
 // Generate a new API key for a user
@@ -52,7 +52,7 @@ export async function createApiKey(request: FastifyRequest, reply: FastifyReply)
       owner: userId,
       createdAt: new Date(),
       lastUsed: null,
-      enabled: true
+      enabled: true,
     });
 
     // Save the API key to the database
@@ -63,7 +63,7 @@ export async function createApiKey(request: FastifyRequest, reply: FastifyReply)
       key,
       name: apiKey.name,
       createdAt: apiKey.createdAt,
-      id: apiKey._id
+      id: apiKey._id,
     });
   } catch (error) {
     console.error('Error creating API key:', error);
@@ -85,9 +85,7 @@ export async function listApiKeys(request: FastifyRequest, reply: FastifyReply) 
     }
 
     // Find all API keys for the user
-    const keys = await ApiKey.find({ owner: userId })
-      .select('-key')
-      .sort({ createdAt: -1 });
+    const keys = await ApiKey.find({ owner: userId }).select('-key').sort({ createdAt: -1 });
 
     return reply.send(keys);
   } catch (error) {
@@ -110,22 +108,18 @@ export async function revokeApiKey(request: FastifyRequest, reply: FastifyReply)
     }
 
     // Find and update the API key
-    const result = await ApiKey.findByIdAndUpdate(
-      keyId,
-      { enabled: false },
-      { new: true }
-    );
+    const result = await ApiKey.findByIdAndUpdate(keyId, { enabled: false }, { new: true });
 
     if (!result) {
       return reply.status(404).send({ error: 'API key not found' });
     }
 
-    return reply.send({ 
-      success: true, 
-      message: 'API key revoked successfully'
+    return reply.send({
+      success: true,
+      message: 'API key revoked successfully',
     });
   } catch (error) {
     console.error('Error revoking API key:', error);
     return reply.status(500).send({ error: 'Failed to revoke API key' });
   }
-} 
+}
