@@ -2,6 +2,7 @@ import { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import { isRedisAvailable, setCache, getCache } from '../utils/redis';
 import mongoose from 'mongoose';
 import crypto from 'crypto';
+import { getCircuitBreakersHealth } from '../utils/circuitBreaker';
 
 // Declare a global interface to properly type the devApiKey
 declare global {
@@ -29,6 +30,55 @@ export default async function debugRoutes(fastify: FastifyInstance, options: Fas
   fastify.get('/debug/ping', async () => {
     return { message: 'debug pong 🎳', timestamp: new Date().toISOString() };
   });
+
+  // Health check endpoint with circuit breaker status
+  fastify.get(
+    '/debug/health',
+    {
+      schema: {
+        description: 'Advanced health check including circuit breaker status',
+        tags: ['health'],
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              timestamp: { type: 'string' },
+              status: { type: 'string' },
+              services: {
+                type: 'object',
+                properties: {
+                  database: { type: 'string' },
+                  redis: { type: 'string' },
+                },
+              },
+              circuitBreakers: { type: 'object' },
+              uptime: { type: 'number' },
+              version: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const dbStatus = mongoose.connection.readyState === 1 ? 'connected' : 'disconnected';
+      const redisStatus = isRedisAvailable() ? 'connected' : 'disconnected';
+
+      // Check status of all circuit breakers
+      const circuitBreakers = getCircuitBreakersHealth();
+
+      return {
+        timestamp: new Date().toISOString(),
+        status: 'ok',
+        services: {
+          database: dbStatus,
+          redis: redisStatus,
+        },
+        circuitBreakers,
+        uptime: process.uptime(),
+        version: process.env.npm_package_version || '1.0.0',
+      };
+    }
+  );
 
   // Test Sentry error reporting
   fastify.get('/debug/test-sentry', async () => {

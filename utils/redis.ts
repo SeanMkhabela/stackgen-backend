@@ -1,6 +1,7 @@
 // utils/redis.ts
 import { createClient, RedisClientType } from 'redis';
 import { captureException } from './sentry';
+import { executeWithCircuitBreaker } from './circuitBreaker';
 
 let redisClient: RedisClientType | null = null;
 let redisEnabled = true;
@@ -88,27 +89,44 @@ export async function setCache(key: string, value: any, expireInSeconds?: number
   }
 
   try {
-    const client = getRedisClient();
-    let stringValue;
+    // Use circuit breaker pattern for Redis set operations
+    await executeWithCircuitBreaker(
+      'redis-set',
+      async () => {
+        const client = getRedisClient();
+        let stringValue;
 
-    // Handle Buffer data differently
-    if (Buffer.isBuffer(value)) {
-      stringValue = value.toString('base64');
-      // Add a prefix to identify this as base64-encoded buffer
-      await client.set(`${key}:type`, 'buffer');
-    } else {
-      stringValue = typeof value === 'string' ? value : JSON.stringify(value);
-    }
+        // Handle Buffer data differently
+        if (Buffer.isBuffer(value)) {
+          stringValue = value.toString('base64');
+          // Add a prefix to identify this as base64-encoded buffer
+          await client.set(`${key}:type`, 'buffer');
+        } else {
+          stringValue = typeof value === 'string' ? value : JSON.stringify(value);
+        }
 
-    if (expireInSeconds) {
-      await client.set(key, stringValue, { EX: expireInSeconds });
-      if (Buffer.isBuffer(value)) {
-        // Set the same expiration for the type
-        await client.set(`${key}:type`, 'buffer', { EX: expireInSeconds });
+        if (expireInSeconds) {
+          await client.set(key, stringValue, { EX: expireInSeconds });
+          if (Buffer.isBuffer(value)) {
+            // Set the same expiration for the type
+            await client.set(`${key}:type`, 'buffer', { EX: expireInSeconds });
+          }
+        } else {
+          await client.set(key, stringValue);
+        }
+      },
+      [], // No additional arguments
+      async () => {
+        // Fallback: simply log and continue without caching
+        console.warn(`Circuit open for Redis set operation (key: ${key}). Skipping cache.`);
+        return;
+      },
+      {
+        timeout: 3000, // 3 seconds timeout for Redis operations
+        errorThresholdPercentage: 25, // Open circuit after 25% failures
+        resetTimeout: 10000, // Try again after 10 seconds
       }
-    } else {
-      await client.set(key, stringValue);
-    }
+    );
   } catch (error) {
     console.error(`Error setting cache for key ${key}:`, error);
     captureException(error as Error, { context: 'Redis setCache', key });
@@ -125,24 +143,41 @@ export async function getCache<T = any>(key: string): Promise<T | null> {
   }
 
   try {
-    const client = getRedisClient();
-    const value = await client.get(key);
+    // Use circuit breaker pattern for Redis get operations
+    return await executeWithCircuitBreaker<T | null>(
+      'redis-get',
+      async () => {
+        const client = getRedisClient();
+        const value = await client.get(key);
 
-    if (!value) return null;
+        if (!value) return null;
 
-    // Check if this is a Buffer type
-    const valueType = await client.get(`${key}:type`);
-    if (valueType === 'buffer') {
-      // Convert from base64 string back to Buffer
-      return Buffer.from(value, 'base64') as unknown as T;
-    }
+        // Check if this is a Buffer type
+        const valueType = await client.get(`${key}:type`);
+        if (valueType === 'buffer') {
+          // Convert from base64 string back to Buffer
+          return Buffer.from(value, 'base64') as unknown as T;
+        }
 
-    try {
-      return JSON.parse(value) as T;
-    } catch {
-      // If not valid JSON, return as is
-      return value as unknown as T;
-    }
+        try {
+          return JSON.parse(value) as T;
+        } catch {
+          // If not valid JSON, return as is
+          return value as unknown as T;
+        }
+      },
+      [], // No additional arguments
+      async () => {
+        // Fallback: return null when circuit is open
+        console.warn(`Circuit open for Redis get operation (key: ${key}). Returning null.`);
+        return null;
+      },
+      {
+        timeout: 3000, // 3 seconds timeout for Redis operations
+        errorThresholdPercentage: 25, // Open circuit after 25% failures
+        resetTimeout: 10000, // Try again after 10 seconds
+      }
+    );
   } catch (error) {
     console.error(`Error getting cache for key ${key}:`, error);
     captureException(error as Error, { context: 'Redis getCache', key });
@@ -159,9 +194,26 @@ export async function deleteCache(key: string): Promise<boolean> {
   }
 
   try {
-    const client = getRedisClient();
-    await client.del(key);
-    return true;
+    // Use circuit breaker pattern for Redis delete operations
+    return await executeWithCircuitBreaker<boolean>(
+      'redis-delete',
+      async () => {
+        const client = getRedisClient();
+        await client.del(key);
+        return true;
+      },
+      [], // No additional arguments
+      async () => {
+        // Fallback: log and return false
+        console.warn(`Circuit open for Redis delete operation (key: ${key}). Returning false.`);
+        return false;
+      },
+      {
+        timeout: 3000, // 3 seconds timeout
+        errorThresholdPercentage: 25, // Open after 25% failures
+        resetTimeout: 10000, // Try again after 10 seconds
+      }
+    );
   } catch (error) {
     console.error(`Error deleting cache for key ${key}:`, error);
     captureException(error as Error, { context: 'Redis deleteCache', key });

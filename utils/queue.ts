@@ -3,6 +3,7 @@
 const Bull = require('bull');
 import { captureException } from './sentry';
 import { isRedisAvailable } from './redis';
+import { executeWithCircuitBreaker } from './circuitBreaker';
 
 // Define type for Queue from Bull
 type BullQueue<T = any> = {
@@ -109,7 +110,7 @@ export function initAllQueues(): void {
 }
 
 /**
- * Add a job to a queue
+ * Add a job to a queue with circuit breaker pattern
  */
 export async function addJob<T>(
   queueName: QueueName,
@@ -125,7 +126,21 @@ export async function addJob<T>(
   }
 
   try {
-    return await queue.add(jobName, data, options);
+    // Use circuit breaker for queue operations
+    return await executeWithCircuitBreaker<BullJob<T> | null>(
+      `queue-add-${queueName}`,
+      async () => await queue.add(jobName, data, options),
+      [], // No additional arguments
+      async () => {
+        console.warn(`Circuit open for queue ${queueName}. Job '${jobName}' not added.`);
+        return null;
+      },
+      {
+        timeout: 5000, // 5 seconds timeout
+        errorThresholdPercentage: 20, // Open circuit after 20% failures
+        resetTimeout: 15000, // Try again after 15 seconds
+      }
+    );
   } catch (error) {
     console.error(`Failed to add job '${jobName}' to queue '${queueName}':`, error);
     captureException(error as Error, {
