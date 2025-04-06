@@ -3,6 +3,8 @@ const mockSave = vi.fn().mockResolvedValue(true);
 const mockFind = vi.fn();
 const mockFindByIdAndUpdate = vi.fn();
 const mockSelect = vi.fn();
+const mockSort = vi.fn();
+const mockCountDocuments = vi.fn().mockResolvedValue(0);
 
 // Mock modules before imports to avoid hoisting issues
 vi.mock('../../utils/apiKey', () => {
@@ -45,6 +47,7 @@ const { ApiKey } = apiKeyModule;
 // Set up the static methods on ApiKey used by the controller
 ApiKey.find = mockFind;
 ApiKey.findByIdAndUpdate = mockFindByIdAndUpdate;
+ApiKey.countDocuments = mockCountDocuments;
 
 describe('API Key Controller', () => {
   // Create mock request/reply objects
@@ -72,13 +75,14 @@ describe('API Key Controller', () => {
     
     // Reset our function mocks
     mockSave.mockClear().mockResolvedValue(true);
-    mockFind.mockClear().mockReturnValue({
-      select: mockSelect.mockClear().mockResolvedValue([])
-    });
+    mockSort.mockClear().mockResolvedValue([]);
+    mockSelect.mockClear().mockReturnValue({ sort: mockSort });
+    mockFind.mockClear().mockReturnValue({ select: mockSelect });
     mockFindByIdAndUpdate.mockClear().mockResolvedValue({
       _id: 'key123',
       enabled: false
     });
+    mockCountDocuments.mockClear().mockResolvedValue(0);
     
     // Reset mongoose mocks
     mongoose.Types.ObjectId.isValid = vi.fn().mockReturnValue(true);
@@ -145,10 +149,10 @@ describe('API Key Controller', () => {
       // Setup listApiKeys test
       mockRequest.query = { userId: 'user123' };
       
-      // Mock the ApiKey.find method
-      mockFind.mockReturnValue({
-        select: mockSelect.mockResolvedValue(mockKeys)
-      });
+      // Mock the ApiKey.find method with proper chaining
+      mockSort.mockResolvedValue(mockKeys);
+      mockSelect.mockReturnValue({ sort: mockSort });
+      mockFind.mockReturnValue({ select: mockSelect });
     });
 
     it('should list all API keys for a user', async () => {
@@ -168,7 +172,7 @@ describe('API Key Controller', () => {
     });
 
     it('should handle database errors gracefully', async () => {
-      mockSelect.mockRejectedValueOnce(new Error('Database error'));
+      mockSort.mockRejectedValueOnce(new Error('Database error'));
       
       console.error = vi.fn(); // Mock console.error
       

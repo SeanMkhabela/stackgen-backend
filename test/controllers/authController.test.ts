@@ -61,7 +61,9 @@ describe('Auth Controller', () => {
     // Create a simpler mock for reply
     mockReply = {
       send: vi.fn().mockReturnThis(),
-      status: vi.fn().mockReturnThis()
+      status: vi.fn(function(this: any) {
+        return this;
+      })
     };
     
     // Reset all mocks between tests
