@@ -154,17 +154,14 @@ async function startServer() {
     app.get('/generate/:stack', async (request, reply) => {
       try {
         const { stack } = request.params as { stack: string };
-        const supportedStacks = ['react', 'django', 'shopify', 'hubspot'];
+        const supportedStacks = ['react', 'django', 'shopify', 'hubspot', 'react-express'];
 
         if (!supportedStacks.includes(stack)) {
           return reply.status(400).send({ error: 'Unsupported stack type' });
         }
 
-        const filePath = path.join(__dirname, 'boilerplates', `${stack}.zip`);
-
-        if (!fs.existsSync(filePath)) {
-          return reply.status(404).send({ error: 'Boilerplate not found' });
-        }
+        const zipFilePath = path.join(__dirname, 'boilerplates', `${stack}.zip`);
+        const dirPath = path.join(__dirname, 'boilerplates', stack);
 
         // Set CORS headers
         reply.header('Access-Control-Allow-Origin', '*');
@@ -175,8 +172,46 @@ async function startServer() {
         reply.header('Content-Type', 'application/zip');
         reply.header('Content-Disposition', `attachment; filename=${stack}.zip`);
 
-        // Stream the file
-        return fs.createReadStream(filePath);
+        // Check if zip file exists
+        if (fs.existsSync(zipFilePath)) {
+          // Stream the existing zip file
+          return fs.createReadStream(zipFilePath);
+        }
+        // Check if directory exists instead
+        else if (fs.existsSync(dirPath) && fs.statSync(dirPath).isDirectory()) {
+          app.log.info(`Zipping directory for ${stack} on-the-fly`);
+
+          // Import archiver for on-the-fly zipping - using dynamic import would be better but requires more setup
+          // eslint-disable-next-line @typescript-eslint/no-var-requires
+          const archiver = require('archiver');
+
+          // Create a zip archive
+          const archive = archiver('zip', {
+            zlib: { level: 9 }, // Maximum compression
+          });
+
+          // Set up archive error handling
+          archive.on('error', (err: Error) => {
+            app.log.error('Archiver error:', err);
+            reply.status(500).send({
+              error: 'Zip creation failed',
+              message: 'Failed to create zip file for download',
+            });
+          });
+
+          // Pipe archive data to the response
+          archive.pipe(reply.raw);
+
+          // Add the entire directory to the archive
+          archive.directory(dirPath, false);
+
+          // Finalize the archive
+          await archive.finalize();
+
+          return reply;
+        } else {
+          return reply.status(404).send({ error: 'Boilerplate not found' });
+        }
       } catch (error) {
         app.log.error('Error serving static boilerplate:', error);
         return reply.status(500).send({
